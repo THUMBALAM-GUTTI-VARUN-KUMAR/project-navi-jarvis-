@@ -8,6 +8,8 @@ export interface BrowserViewBounds {
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getApiKey: () => ipcRenderer.invoke('get-api-key'),
+  saveApiKey: (key: string) => ipcRenderer.invoke('save-api-key', key),
   openBrowser: (url: string, bounds: BrowserViewBounds) => ipcRenderer.invoke('open-browser', url, bounds),
   closeBrowser: () => ipcRenderer.invoke('close-browser'),
   updateBrowserBounds: (bounds: BrowserViewBounds) => ipcRenderer.invoke('update-browser-bounds', bounds),

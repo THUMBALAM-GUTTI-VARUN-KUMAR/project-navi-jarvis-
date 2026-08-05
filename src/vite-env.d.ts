@@ -2,6 +2,8 @@
 
 interface Window {
   electronAPI?: {
+    getApiKey: () => Promise<string>;
+    saveApiKey: (key: string) => Promise<{success: boolean}>;
     openBrowser: any;
     closeBrowser: any;
     updateBrowserBounds: any;

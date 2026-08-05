@@ -22,6 +22,7 @@ import { AmbientModal } from "./components/AmbientModal";
 import { NotesDrawer } from "./components/NotesDrawer";
 import { ToolLogsDrawer } from "./components/ToolLogsDrawer";
 import { SettingsModal } from "./components/SettingsModal";
+import { WelcomeScreen } from "./components/WelcomeScreen";
 import { SmartBrowserContainer } from "./components/SmartBrowserContainer";
 import { DeveloperDashboard } from "./components/DeveloperDashboard";
 import { AgentDashboard } from "./components/AgentDashboard";
@@ -35,6 +36,10 @@ import { ContextTooltip } from "./components/ContextTooltip";
 import { learningBus } from "./events/LearningBus";
 
 export default function App() {
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
+
+  // App UI States
   const [sessionState, setSessionState] = useState<SessionState>("disconnected");
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [activeVoice, setActiveVoice] = useState<string>("Kore");
@@ -67,8 +72,30 @@ export default function App() {
   const [isLearningMode, setIsLearningMode] = useState<boolean>(false);
   const [isOverlayActive, setIsOverlayActive] = useState<boolean>(false); // Phase 1 Overlay
 
+  // Check API key on mount
+  useEffect(() => {
+    if (window.electronAPI && window.electronAPI.getApiKey) {
+      window.electronAPI.getApiKey().then((key) => {
+        setApiKey(key || null);
+        setIsCheckingApiKey(false);
+      });
+    } else {
+      setIsCheckingApiKey(false);
+    }
+  }, []);
+
+  const handleSaveApiKey = async (key: string) => {
+    if (window.electronAPI && window.electronAPI.saveApiKey) {
+      await window.electronAPI.saveApiKey(key);
+      setApiKey(key);
+    }
+  };
+
   const sessionRef = useRef<LiveSession | null>(null);
   const animFrameRef = useRef<number | null>(null);
+
+  if (isCheckingApiKey) return null;
+  if (!apiKey) return <WelcomeScreen onSave={handleSaveApiKey} />;
 
   // Initialize Global Shortcut listener
   useEffect(() => {

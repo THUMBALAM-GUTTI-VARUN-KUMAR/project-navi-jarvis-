@@ -23,20 +23,41 @@ const __dirname = path.dirname(__filename);
 // Gemini Live WebSocket Proxy Server (Migrated from server.ts)
 // ---------------------------------------------------------
 const PORT = parseInt(process.env.PORT || "3000", 10);
-const apiKey = process.env.GEMINI_API_KEY;
+let activeApiKey = process.env.GEMINI_API_KEY || "";
 
-if (!apiKey) {
-  console.warn("⚠️ Warning: GEMINI_API_KEY environment variable is not set.");
+// Config path is determined when app is ready
+let configPath = "";
+
+async function loadApiKey() {
+  if (configPath) {
+    try {
+      const fileData = await fs.readFile(configPath, 'utf8');
+      const config = JSON.parse(fileData);
+      if (config.apiKey) {
+        activeApiKey = config.apiKey;
+        process.env.GEMINI_API_KEY = config.apiKey;
+      }
+    } catch (e) {
+      // File doesn't exist or is invalid, that's fine
+    }
+  }
 }
 
-const ai = new GoogleGenAI({
-  apiKey: apiKey || "",
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build",
-    },
-  },
+async function saveApiKey(key: string) {
+  activeApiKey = key;
+  process.env.GEMINI_API_KEY = key;
+  if (configPath) {
+    await fs.writeFile(configPath, JSON.stringify({ apiKey: key }));
+  }
+}
+
+ipcMain.handle('get-api-key', () => activeApiKey);
+ipcMain.handle('save-api-key', async (event, key: string) => {
+  await saveApiKey(key);
+  return { success: true };
 });
+
+// GoogleGenAI instance will be recreated when needed with activeApiKey
 
 const NAVI_SYSTEM_PROMPT = `
 You are Navi, an advanced AI Intelligence Engine and a charming, witty female voice companion.
@@ -961,7 +982,7 @@ function startGeminiServer() {
     const voiceName = requestUrl.searchParams.get("voice") || "Kore";
     const userName = requestUrl.searchParams.get("userName") || "";
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!activeApiKey) {
       clientWs.send(JSON.stringify({ type: "error", error: "GEMINI_API_KEY is not configured on the server." }));
       clientWs.close();
       return;
@@ -970,6 +991,11 @@ function startGeminiServer() {
     try {
       clientWs.send(JSON.stringify({ type: "status", status: "connecting" }));
       const systemPrompt = NAVI_SYSTEM_PROMPT + (userName ? `\n\nThe user's name is ${userName}. Address them warmly by name!` : "");
+
+      const ai = new GoogleGenAI({
+        apiKey: activeApiKey,
+        httpOptions: { headers: { "User-Agent": "aistudio-build" } },
+      });
 
       const session = await ai.live.connect({
         model: "gemini-3.1-flash-live-preview",
@@ -1806,7 +1832,10 @@ function createWindow() {
 
 let tray: Tray | null = null;
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  configPath = path.join(app.getPath('userData'), 'navi-config.json');
+  await loadApiKey();
+
   startGeminiServer();
   createWindow();
 
