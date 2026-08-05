@@ -1,0 +1,1 @@
+{"name":"Navi","description":"Real-time voice-to-voice AI assistant web app featuring a charming, witty companion named Navi with ultra-low latency audio, custom function calling, and interactive visuals.","requestFramePermissions":["microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
